@@ -1,0 +1,714 @@
+{% extends 'training/base.html' %}
+
+{% block title %}模型训练 - 机器学习训练平台{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>LeNet模型训练</h2>
+        <p class="text-muted">配置训练参数并开始训练LeNet卷积神经网络模型</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>训练参数配置</h5>
+            </div>
+            <div class="card-body">
+                <form id="training-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="epochs" class="form-label">训练轮数 (Epochs)</label>
+                        <input type="number" class="form-control" id="epochs" name="epochs" value="10" min="1" max="100">
+                    </div>
+                    <div class="mb-3">
+                        <label for="batch_size" class="form-label">批次大小 (Batch Size)</label>
+                        <select class="form-control" id="batch_size" name="batch_size">
+                            <option value="16">16</option>
+                            <option value="32">32</option>
+                            <option value="64" selected>64</option>
+                            <option value="128">128</option>
+                            <option value="256">256</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="learning_rate" class="form-label">学习率 (Learning Rate)</label>
+                        <input type="number" class="form-control" id="learning_rate" name="learning_rate" 
+                               value="0.001" step="any" min="0" max="1" placeholder="0.001">
+                        <small class="form-text text-muted">
+                            常用值: 0.1 (较大), 0.01 (中等), 0.001 (较小), 0.0001 (很小)
+                        </small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="optimizer" class="form-label">优化器</label>
+                        <select class="form-control" id="optimizer" name="optimizer">
+                            <option value="sgd">SGD</option>
+                            <option value="adam">Adam</option>
+                        </select>
+                    </div>
+                    
+                    <!-- SGD 参数 -->
+                    <div id="sgd-params" class="optimizer-params mt-3">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">SGD 优化器参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="momentum" class="form-label">动量 (Momentum)</label>
+                                    <input type="number" class="form-control" id="momentum" name="momentum" 
+                                           value="0.9" step="0.01" min="0" max="1" placeholder="0.9">
+                                    <small class="form-text text-muted">
+                                        SGD动量参数，常用值: 0.9 (推荐), 0.95 (较大), 0.8 (较小)
+                                    </small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="weight_decay" class="form-label">权重衰减 (Weight Decay)</label>
+                                    <input type="number" class="form-control" id="weight_decay" name="weight_decay" 
+                                           value="0.0001" step="any" min="0" max="0.1" placeholder="0.0001">
+                                    <small class="form-text text-muted">
+                                        L2正则化参数，常用值: 1e-4 (推荐), 1e-3 (较大), 1e-5 (较小)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Adam 参数 -->
+                    <div id="adam-params" class="optimizer-params mt-3" style="display: none;">
+                        <div class="card">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Adam 优化器参数</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="beta1" class="form-label">Beta1</label>
+                                    <input type="number" class="form-control" id="beta1" name="beta1" 
+                                           value="0.9" step="0.01" min="0" max="1" placeholder="0.9">
+                                    <small class="form-text text-muted">
+                                        一阶矩估计的衰减率，常用值: 0.9 (推荐), 0.8 (较小), 0.95 (较大)
+                                    </small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="beta2" class="form-label">Beta2</label>
+                                    <input type="number" class="form-control" id="beta2" name="beta2" 
+                                           value="0.999" step="0.001" min="0" max="1" placeholder="0.999">
+                                    <small class="form-text text-muted">
+                                        二阶矩估计的衰减率，常用值: 0.999 (推荐), 0.99 (较小), 0.9999 (较大)
+                                    </small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="eps" class="form-label">Epsilon</label>
+                                    <input type="number" class="form-control" id="eps" name="eps" 
+                                           value="0.00000001" step="any" min="0" max="0.01" placeholder="1e-8">
+                                    <small class="form-text text-muted">
+                                        数值稳定性参数，常用值: 1e-8 (推荐), 1e-7 (较大), 1e-9 (较小)
+                                    </small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="weight_decay_adam" class="form-label">权重衰减 (Weight Decay)</label>
+                                    <input type="number" class="form-control" id="weight_decay_adam" name="weight_decay_adam" 
+                                           value="0.0001" step="any" min="0" max="0.1" placeholder="0.0001">
+                                    <small class="form-text text-muted">
+                                        L2正则化参数，常用值: 1e-4 (推荐), 1e-3 (较大), 1e-5 (较小)
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="start-training">开始训练</button>
+                    <button type="button" class="btn btn-secondary" id="stop-training" style="display:none;">停止训练</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>训练状态</h5>
+            </div>
+            <div class="card-body">
+                <div id="training-status" class="mb-3">
+                    <span class="badge bg-secondary">未开始</span>
+                </div>
+                <div class="progress mb-3" style="display:none;" id="training-progress">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                
+                <!-- 详细训练进度条 -->
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0">详细训练进度</h6>
+                        <small id="progress-text" class="text-muted">0.0%</small>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        <div id="detailed-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                            <span id="progress-label">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="training-log" style="height: 200px; overflow-y: auto; background-color: #f8f9fa; padding: 10px; border-radius: 4px;">
+                    <p class="text-muted">训练日志将在这里显示...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>实时训练指标</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>当前轮数</h6>
+                            <h3 id="current-epoch" class="text-primary">0</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>训练损失</h6>
+                            <h3 id="train-loss" class="text-danger">0.000</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>训练准确率</h6>
+                            <h3 id="train-accuracy" class="text-success">0.00%</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>训练进度</h6>
+                            <h3 id="training-percentage" class="text-info">0.0%</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 实时Loss图表 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5>实时Loss曲线</h5>
+                <button class="btn btn-sm btn-outline-primary" id="save-chart-btn" onclick="saveChart()" disabled>
+                    <i class="fas fa-download"></i> 保存图片
+                </button>
+            </div>
+            <div class="card-body">
+                <canvas id="realtime-loss-chart" width="800" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let currentTrainingId = null;
+let statusInterval = null;
+let lossChart = null;
+
+// 优化器切换逻辑
+document.getElementById('optimizer').addEventListener('change', function() {
+    const optimizerType = this.value;
+    const sgdParams = document.getElementById('sgd-params');
+    const adamParams = document.getElementById('adam-params');
+    
+    if (optimizerType === 'adam') {
+        sgdParams.style.display = 'none';
+        adamParams.style.display = 'block';
+    } else {
+        sgdParams.style.display = 'block';
+        adamParams.style.display = 'none';
+    }
+});
+
+// 自定义插件：只为验证损失显示数据标签
+const validationLabelPlugin = {
+    id: 'validationLabelPlugin',
+    afterDatasetsDraw: function(chart, args, options) {
+        const ctx = chart.ctx;
+        const datasets = chart.data.datasets;
+        
+        // 只处理验证损失数据集 (index 1)
+        const validationDataset = datasets[1];
+        if (!validationDataset || !validationDataset.data) return;
+        
+        const meta = chart.getDatasetMeta(1);
+        if (!meta.visible) return;
+        
+        ctx.save();
+        ctx.font = 'bold 10px Arial';
+        ctx.fillStyle = 'rgb(54, 162, 235)';
+        ctx.textAlign = 'center';
+        
+        validationDataset.data.forEach((value, index) => {
+            if (value !== null && value !== undefined) {
+                const point = meta.data[index];
+                if (point && point.x !== undefined && point.y !== undefined) {
+                    ctx.fillText(value.toFixed(4), point.x, point.y - 10);
+                }
+            }
+        });
+        
+        ctx.restore();
+    }
+};
+
+// 初始化Loss图表
+function initLossChart() {
+    const ctx = document.getElementById('realtime-loss-chart').getContext('2d');
+    
+    lossChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: '训练损失 (Training Loss)',
+                data: [],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                tension: 0.3,
+                pointRadius: 2,
+                pointHoverRadius: 4,
+                spanGaps: true
+            }, {
+                label: '验证损失 (Validation Loss)',
+                data: [],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                tension: 0.1,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                spanGaps: true,  // 连接数据点，跳过null值，形成折线
+                pointStyle: 'rectRot'  // 使用旋转方形点来区分
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Loss'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Training Progress (Epoch.Step)'
+                    },
+                    ticks: {
+                        maxTicksLimit: 15,  // 限制x轴标签数量避免重叠
+                        callback: function(value, index, ticks) {
+                            const label = this.getLabelForValue(value);
+                            if (label && label.includes('.')) {
+                                const parts = label.split('.');
+                                const epoch = parts[0];
+                                const step = parts[1];
+                                // 只显示每个epoch的开始或关键点
+                                if (step === '1' || step === '5' || parseInt(step) % 5 === 0) {
+                                    return `${epoch}.${step}`;
+                                }
+                                return '';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                title: {
+                    display: true,
+                    text: '实时训练和验证损失曲线'
+                },
+                legend: {
+                    display: true,
+                    position: 'top'
+                }
+            },
+            animation: {
+                duration: 300
+            }
+        },
+        plugins: [validationLabelPlugin]  // 注册自定义插件
+    });
+}
+
+// 更新Loss图表
+function updateLossChart(training) {
+    if (!lossChart) return;
+    
+    // 使用step级别的训练损失数据（每100步更新一次）
+    const stepLabels = training.step_labels || [];
+    const stepLosses = training.step_losses || [];
+    
+    // 验证损失按epoch更新，但需要在对应的step位置显示
+    const valLosses = training.epoch_val_losses || [];
+    
+    // 创建验证损失的对齐数据，只在特定的step位置显示，其他位置为null
+    const alignedValLosses = [];
+    
+    for (let i = 0; i < stepLabels.length; i++) {
+        const label = stepLabels[i];
+        const parts = label.split('.');
+        const epochNum = parseInt(parts[0]);
+        const stepNum = parseFloat(parts[1]);
+        
+        // 验证损失显示规则：
+        // 只在每个epoch的最后一个step点显示对应epoch的验证损失
+        const isEpochEnd = i === stepLabels.length - 1 || 
+                         (i < stepLabels.length - 1 && 
+                          parseInt(stepLabels[i + 1].split('.')[0]) > epochNum);
+        
+        if (isEpochEnd && epochNum <= valLosses.length) {
+            // epoch结束点，显示对应的验证损失
+            alignedValLosses.push(valLosses[epochNum - 1] || null);
+        } else {
+            alignedValLosses.push(null);
+        }
+    }
+    
+    lossChart.data.labels = stepLabels;
+    lossChart.data.datasets[0].data = stepLosses;
+    lossChart.data.datasets[1].data = alignedValLosses;
+    
+    lossChart.update('none'); // 使用 'none' 模式避免动画延迟
+}
+
+// 保存图表为图片
+function saveChart() {
+    if (!lossChart) return;
+    
+    // 创建下载链接
+    const url = lossChart.toBase64Image();
+    const link = document.createElement('a');
+    link.download = `loss_chart_${new Date().getTime()}.png`;
+    link.href = url;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+document.getElementById('training-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const startBtn = document.getElementById('start-training');
+    const stopBtn = document.getElementById('stop-training');
+    const statusDiv = document.getElementById('training-status');
+    const progressDiv = document.getElementById('training-progress');
+    const logDiv = document.getElementById('training-log');
+    
+    // 显示训练开始状态
+    statusDiv.innerHTML = '<span class="badge bg-warning">准备中...</span>';
+    progressDiv.style.display = 'block';
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'inline-block';
+    
+    // 清空日志和指标
+    logDiv.innerHTML = '';
+    document.getElementById('current-epoch').textContent = '0';
+    document.getElementById('train-loss').textContent = '0.000';
+    document.getElementById('train-accuracy').textContent = '0.00%';
+    document.getElementById('training-percentage').textContent = '0.0%';
+    
+    // 重置详细进度条
+    const detailedProgressBar = document.getElementById('detailed-progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const progressLabel = document.getElementById('progress-label');
+    detailedProgressBar.style.width = '0%';
+    progressText.textContent = '0.0%';
+    progressLabel.textContent = '0.0%';
+    
+    // 初始化或重置图表
+    if (!lossChart) {
+        initLossChart();
+    } else {
+        lossChart.data.labels = [];
+        lossChart.data.datasets[0].data = [];
+        lossChart.data.datasets[1].data = [];
+        lossChart.update();
+    }
+    
+    // 启用保存按钮
+    document.getElementById('save-chart-btn').disabled = false;
+    
+    // 收集优化器参数
+    const optimizerType = document.getElementById('optimizer').value;
+    let optimizerParams = {
+        optimizer: optimizerType
+    };
+    
+    if (optimizerType === 'adam') {
+        optimizerParams.beta1 = parseFloat(document.getElementById('beta1').value);
+        optimizerParams.beta2 = parseFloat(document.getElementById('beta2').value);
+        optimizerParams.eps = parseFloat(document.getElementById('eps').value);
+        optimizerParams.weight_decay = parseFloat(document.getElementById('weight_decay_adam').value);
+    } else {
+        optimizerParams.momentum = parseFloat(document.getElementById('momentum').value);
+        optimizerParams.weight_decay = parseFloat(document.getElementById('weight_decay').value);
+    }
+    
+    // 发送训练请求
+    fetch('/api/start-training/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            epochs: parseInt(document.getElementById('epochs').value),
+            batch_size: parseInt(document.getElementById('batch_size').value),
+            learning_rate: parseFloat(document.getElementById('learning_rate').value),
+            ...optimizerParams
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            currentTrainingId = data.training_id;
+            addLog('训练已开始，ID: ' + currentTrainingId);
+            
+            // 开始轮询状态
+            startStatusPolling();
+        } else {
+            addLog('错误: ' + data.message, 'error');
+            resetTrainingUI();
+        }
+    })
+    .catch(error => {
+        addLog('请求失败: ' + error.message, 'error');
+        resetTrainingUI();
+    });
+});
+
+document.getElementById('stop-training').addEventListener('click', function() {
+    if (currentTrainingId) {
+        fetch(`/api/stop-training/${currentTrainingId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            addLog(data.message);
+        });
+    }
+});
+
+function startStatusPolling() {
+    if (statusInterval) {
+        clearInterval(statusInterval);
+    }
+    
+    statusInterval = setInterval(() => {
+        if (currentTrainingId) {
+            updateTrainingStatus();
+        }
+    }, 1000); // 每1秒更新一次
+}
+
+function updateTrainingStatus() {
+    fetch(`/api/training-status/${currentTrainingId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const training = data.data;
+                updateUI(training);
+                
+                // 如果训练完成或停止，停止轮询
+                if (training.status === 'completed' || training.status === 'error' || training.status === 'stopped') {
+                    clearInterval(statusInterval);
+                    statusInterval = null;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('获取状态失败:', error);
+        });
+}
+
+function updateUI(training) {
+    // 添加调试信息
+    console.log('更新UI数据:', {
+        status: training.status,
+        current_epoch: training.current_epoch,
+        progress: training.progress,
+        current_loss: training.current_loss,
+        current_accuracy: training.current_accuracy,
+        current_samples: training.current_samples,
+        total_samples: training.total_samples,
+        logs_count: training.logs ? training.logs.length : 0
+    });
+    
+    const statusDiv = document.getElementById('training-status');
+    const progressDiv = document.getElementById('training-progress');
+    const progressBar = progressDiv.querySelector('.progress-bar');
+    
+    // 更新状态
+    let statusBadge = '';
+    switch (training.status) {
+        case 'running':
+            statusBadge = '<span class="badge bg-success">训练中...</span>';
+            break;
+        case 'completed':
+            statusBadge = '<span class="badge bg-success">训练完成</span>';
+            resetTrainingUI();
+            // 训练完成后自动跳转到结果页面
+            addLog('训练已完成！3秒后自动跳转到结果页面...', 'success');
+            setTimeout(() => {
+                window.location.href = '/results/';
+            }, 3000);
+            break;
+        case 'error':
+            statusBadge = '<span class="badge bg-danger">训练错误</span>';
+            resetTrainingUI();
+            break;
+        case 'stopped':
+            statusBadge = '<span class="badge bg-warning">已停止</span>';
+            resetTrainingUI();
+            break;
+        default:
+            statusBadge = '<span class="badge bg-secondary">' + training.status + '</span>';
+    }
+    statusDiv.innerHTML = statusBadge;
+    
+    // 更新进度条
+    progressBar.style.width = training.progress + '%';
+    
+    // 更新指标 - 添加null检查和默认值
+    document.getElementById('current-epoch').textContent = training.current_epoch || 0;
+    
+    const currentLoss = training.current_loss || 0;
+    document.getElementById('train-loss').textContent = currentLoss.toFixed(4);
+    
+    const currentAccuracy = training.current_accuracy || 0;
+    document.getElementById('train-accuracy').textContent = currentAccuracy.toFixed(2) + '%';
+    
+    // 更新训练进度百分比显示
+    const progressPercentage = training.progress || 0;
+    document.getElementById('training-percentage').textContent = progressPercentage.toFixed(1) + '%';
+    
+    // 更新详细进度条
+    const detailedProgressBar = document.getElementById('detailed-progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const progressLabel = document.getElementById('progress-label');
+    
+    detailedProgressBar.style.width = progressPercentage + '%';
+    detailedProgressBar.setAttribute('aria-valuenow', progressPercentage);
+    progressText.textContent = progressPercentage.toFixed(1) + '%';
+    progressLabel.textContent = progressPercentage.toFixed(1) + '%';
+    
+    // 根据进度改变进度条颜色
+    detailedProgressBar.className = 'progress-bar progress-bar-striped progress-bar-animated';
+    if (progressPercentage < 25) {
+        detailedProgressBar.classList.add('bg-danger');
+    } else if (progressPercentage < 50) {
+        detailedProgressBar.classList.add('bg-warning');
+    } else if (progressPercentage < 75) {
+        detailedProgressBar.classList.add('bg-info');
+    } else {
+        detailedProgressBar.classList.add('bg-success');
+    }
+    
+    // 更新日志（只添加新的日志）
+    updateLogs(training.logs);
+    
+    // 更新Loss图表
+    updateLossChart(training);
+}
+
+function updateLogs(logs) {
+    const logDiv = document.getElementById('training-log');
+    const currentLogCount = logDiv.children.length;
+    
+    // 只添加新的日志条目
+    for (let i = currentLogCount; i < logs.length; i++) {
+        const log = logs[i];
+        const logEntry = document.createElement('div');
+        const time = new Date(log.timestamp).toLocaleTimeString();
+        logEntry.innerHTML = `<small class="text-muted">[${time}]</small> ${log.message}`;
+        logDiv.appendChild(logEntry);
+    }
+    
+    // 滚动到底部
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function addLog(message, type = 'info') {
+    const logDiv = document.getElementById('training-log');
+    const logEntry = document.createElement('div');
+    const time = new Date().toLocaleTimeString();
+    
+    let className = '';
+    if (type === 'error') {
+        className = 'text-danger';
+    } else if (type === 'success') {
+        className = 'text-success';
+    }
+    
+    logEntry.innerHTML = `<small class="text-muted">[${time}]</small> <span class="${className}">${message}</span>`;
+    logDiv.appendChild(logEntry);
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function resetTrainingUI() {
+    const startBtn = document.getElementById('start-training');
+    const stopBtn = document.getElementById('stop-training');
+    
+    startBtn.style.display = 'inline-block';
+    stopBtn.style.display = 'none';
+    
+    if (statusInterval) {
+        clearInterval(statusInterval);
+        statusInterval = null;
+    }
+}
+
+// 页面加载时检查是否有正在进行的训练
+window.addEventListener('load', function() {
+    // 初始化图表
+    initLossChart();
+    
+    fetch('/api/all-trainings/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' && data.data.active.length > 0) {
+                // 如果有活跃的训练，恢复状态
+                const activeTraining = data.data.active[0];
+                currentTrainingId = activeTraining.id;
+                addLog('发现正在进行的训练，恢复状态...');
+                
+                // 恢复图表数据
+                updateLossChart(activeTraining);
+                
+                // 启用保存按钮
+                document.getElementById('save-chart-btn').disabled = false;
+                
+                startStatusPolling();
+            }
+        })
+        .catch(error => {
+            console.log('检查活跃训练失败:', error);
+        });
+});
+</script>
+{% endblock %}

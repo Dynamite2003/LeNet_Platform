@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}机器学习训练平台{% endblock %}</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .main-content {
+            margin-top: 2rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">ML训练平台</a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="{% url 'home' %}">首页</a>
+                <a class="nav-link" href="{% url 'train' %}">模型训练</a>
+                <a class="nav-link" href="{% url 'results' %}">训练结果</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container main-content">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}
+    {% endblock %}
+</body>
+</html>

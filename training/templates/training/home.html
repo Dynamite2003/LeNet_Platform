@@ -1,0 +1,203 @@
+{% extends 'training/base.html' %}
+
+{% block title %}首页 - LeNet训练平台{% endblock %}
+
+{% block content %}
+<!-- 平台头部介绍 -->
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-gradient-primary text-white p-5 rounded shadow-lg">
+            <div class="text-center">
+                <h1 class="display-3 font-weight-bold mb-4">
+                    <i class="fas fa-brain mr-3"></i>LeNet训练平台
+                </h1>
+                <p class="lead mb-4">基于Django构建的深度学习模型训练平台</p>
+                <p class="mb-4">支持LeNet-5模型在MNIST数据集上的训练、监控与结果分析</p>
+                
+                <!-- 主要操作按钮 -->
+                <div class="mt-4">
+                    <a href="{% url 'train' %}" class="btn btn-light btn-lg mr-3 shadow">
+                        <i class="fas fa-play mr-2"></i>开始训练
+                    </a>
+                    <a href="{% url 'results' %}" class="btn btn-outline-light btn-lg shadow">
+                        <i class="fas fa-chart-line mr-2"></i>查看结果
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 开发者信息 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom-0">
+                <h4 class="mb-0 text-center">
+                    <i class="fas fa-user-graduate mr-2 text-primary"></i>开发者信息
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-id-badge fa-3x text-primary mb-3"></i>
+                            </div>
+                            <dl class="row">
+                                <dt class="col-sm-4 text-right">姓名:</dt>
+                                <dd class="col-sm-8 text-left font-weight-bold">史志远</dd>
+                                
+                                <dt class="col-sm-4 text-right">学号:</dt>
+                                <dd class="col-sm-8 text-left">2022011283</dd>
+                                
+                                <dt class="col-sm-4 text-right">邮箱:</dt>
+                                <dd class="col-sm-8 text-left">
+                                    <a href="mailto:zhangsan@example.com" class="text-decoration-none">
+                                        shizy22@mails.tsinghua.edu.cn
+                                    </a>
+                                </dd>
+                                
+                                <dt class="col-sm-4 text-right">专业:</dt>
+                                <dd class="col-sm-8 text-left">软件工程</dd>
+                                
+                                <dt class="col-sm-4 text-right">开发时间:</dt>
+                                <dd class="col-sm-8 text-left">2025年8月</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 平台功能模块 -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm border-0 hover-card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-cogs fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title">模型训练</h5>
+                <p class="card-text">
+                    配置训练参数，支持SGD和Adam优化器，实时监控训练进度和损失变化
+                </p>
+                <ul class="list-unstyled text-left small text-muted">
+                    <li><i class="fas fa-check text-success mr-2"></i>支持多种优化器配置</li>
+                    <li><i class="fas fa-check text-success mr-2"></i>实时训练进度监控</li>
+                    <li><i class="fas fa-check text-success mr-2"></i>动态损失曲线显示</li>
+                </ul>
+                <a href="{% url 'train' %}" class="btn btn-primary btn-block">
+                    <i class="fas fa-play mr-2"></i>开始训练
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm border-0 hover-card">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-chart-bar fa-3x text-success"></i>
+                </div>
+                <h5 class="card-title">结果分析</h5>
+                <p class="card-text">
+                    查看训练结果，分析模型性能，下载训练报告和错误样本分析
+                </p>
+                <ul class="list-unstyled text-left small text-muted">
+                    <li><i class="fas fa-check text-success mr-2"></i>损失和准确率可视化</li>
+                    <li><i class="fas fa-check text-success mr-2"></i>错误样本展示分析</li>
+                    <li><i class="fas fa-check text-success mr-2"></i>训练报告导出下载</li>
+                </ul>
+                <a href="{% url 'results' %}" class="btn btn-success btn-block">
+                    <i class="fas fa-chart-line mr-2"></i>查看结果
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 技术特性 -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white">
+                <h4 class="mb-0 text-center">
+                    <i class="fas fa-star mr-2 text-warning"></i>平台特性
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item border-0">
+                                <i class="fas fa-network-wired text-primary mr-3"></i>
+                                LeNet-5卷积神经网络模型
+                            </li>
+                            <li class="list-group-item border-0">
+                                <i class="fas fa-database text-info mr-3"></i>
+                                MNIST手写数字数据集(70,000张图片)
+                            </li>
+                            <li class="list-group-item border-0">
+                                <i class="fas fa-tachometer-alt text-success mr-3"></i>
+                                实时训练进度监控
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item border-0">
+                                <i class="fas fa-chart-area text-warning mr-3"></i>
+                                训练损失和验证曲线可视化
+                            </li>
+                            <li class="list-group-item border-0">
+                                <i class="fas fa-bug text-danger mr-3"></i>
+                                错误样本分析展示
+                            </li>
+                            <li class="list-group-item border-0">
+                                <i class="fas fa-download text-secondary mr-3"></i>
+                                模型和报告下载功能
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.hover-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+}
+
+.list-group-item {
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.jumbotron {
+    border: none;
+}
+
+.card {
+    border-radius: 10px;
+}
+
+.btn {
+    border-radius: 25px;
+}
+</style>
+{% endblock %}

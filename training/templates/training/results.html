@@ -1,0 +1,723 @@
+{% extends 'training/base.html' %}
+
+{% block title %}训练结果 - 机器学习训练平台{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>训练结果展示</h2>
+        <p class="text-muted">查看模型训练过程中的各项指标和结果</p>
+        
+        <!-- 训练记录选择器 -->
+        {% if all_training_records %}
+        <div class="mb-4">
+            <label for="training-selector" class="form-label"><strong>选择训练记录：</strong></label>
+            <select id="training-selector" class="form-select" onchange="selectTraining()">
+                <option value="">-- 选择一个训练记录 --</option>
+                {% for training in all_training_records %}
+                <option value="{{ training.id }}" 
+                        {% if training.id == selected_training_id %}selected{% endif %}>
+                    {{ training.id|slice:":8" }} - {{ training.status|title }} 
+                    ({{ training.created_at|date:"Y-m-d H:i" }}) 
+                    {% if training.config %}
+                        - Epochs: {{ training.config.epochs }}, LR: {{ training.config.learning_rate }}, {{ training.config.optimizer|upper }}
+                    {% endif %}
+                    {% if training.status == 'completed' and training.current_accuracy %}
+                        - 准确率: {{ training.current_accuracy|floatformat:2 }}%
+                    {% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        
+        {% if not has_training_data %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle"></i> 
+            {% if all_training_records %}
+                请选择一个训练记录来查看结果
+            {% else %}
+                暂无训练数据，请先进行模型训练
+            {% endif %}
+            <div class="mt-2">
+                <a href="/train/" class="btn btn-primary">开始新的训练</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">最终准确率</h5>
+                    <dt class="col-sm-4">最终准确率</dt>
+                    <dd class="col-sm-8">
+                        {% if has_training_data %}
+                            {{ selected_training_obj.current_accuracy|floatformat:2 }}%
+                        {% else %}
+                            --.--%
+                        {% endif %}
+                    </dd>
+                </h2>
+                <small class="text-muted">测试集准确率</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">最终验证损失</h5>
+                <h2 class="text-danger">
+                    {% if has_training_data %}
+                        {{ selected_training_obj.current_val_loss|floatformat:4 }}
+                    {% else %}
+                        -.----
+                    {% endif %}
+                </h2>
+                <small class="text-muted">验证集损失</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">训练进度</h5>
+                <h2 class="text-info" id="training-progress">
+                    {% if has_training_data %}
+                        {{ selected_training_obj.progress|floatformat:1 }}%
+                    {% else %}
+                        --.-%
+                    {% endif %}
+                </h2>
+                <small class="text-muted">完成度</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">训练轮数</h5>
+                <h2 class="text-primary">
+                    {% if has_training_data %}
+                        {{ selected_training_obj.current_epoch }}
+                    {% else %}
+                        --
+                    {% endif %}
+                </h2>
+                <small class="text-muted">完成轮数</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>训练损失曲线</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="lossChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>准确率曲线</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="accuracyChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>训练历史</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>轮数</th>
+                                <th>训练损失</th>
+                                <th>验证损失</th>
+                                <th>验证准确率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="training-history-tbody">
+                            <!-- 动态生成的训练历史 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>模型信息</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">模型类型:</dt>
+                    <dd class="col-sm-8">LeNet-5</dd>
+                    
+                    <dt class="col-sm-4">数据集:</dt>
+                    <dd class="col-sm-8">MNIST (60,000 训练样本)</dd>
+                    
+                    <dt class="col-sm-4">优化器:</dt>
+                    <dd class="col-sm-8">
+                        {% if has_training_data %}
+                            {{ selected_training_obj.config.optimizer|upper|default:"SGD" }}
+                        {% else %}
+                            SGD
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-4">学习率:</dt>
+                    <dd class="col-sm-8">
+                        {% if has_training_data %}
+                            {{ selected_training_obj.config.learning_rate|default:"0.001" }}
+                        {% else %}
+                            0.001
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-4">批次大小:</dt>
+                    <dd class="col-sm-8">
+                        {% if has_training_data %}
+                            {{ selected_training_obj.config.batch_size|default:"64" }}
+                        {% else %}
+                            64
+                        {% endif %}
+                    </dd>
+                    
+                    {% if has_training_data and selected_training_obj.config.optimizer == 'adam' %}
+                    <dt class="col-sm-4">Beta1:</dt>
+                    <dd class="col-sm-8">{{ selected_training_obj.config.beta1|default:"0.9" }}</dd>
+                    
+                    <dt class="col-sm-4">Beta2:</dt>
+                    <dd class="col-sm-8">{{ selected_training_obj.config.beta2|default:"0.999" }}</dd>
+                    
+                    <dt class="col-sm-4">Epsilon:</dt>
+                    <dd class="col-sm-8">{{ selected_training_obj.config.eps|default:"1e-8" }}</dd>
+                    {% endif %}
+                    
+                    {% if has_training_data and selected_training_obj.config.optimizer == 'sgd' %}
+                    <dt class="col-sm-4">动量:</dt>
+                    <dd class="col-sm-8">{{ selected_training_obj.config.momentum|default:"0.9" }}</dd>
+                    {% endif %}
+                    
+                    {% if has_training_data %}
+                    <dt class="col-sm-4">权重衰减:</dt>
+                    <dd class="col-sm-8">{{ selected_training_obj.config.weight_decay|default:"1e-4" }}</dd>
+                    
+                    <dt class="col-sm-4">训练时长:</dt>
+                    <dd class="col-sm-8">{{ selected_training_obj.duration|default:"N/A" }}</dd>
+                    {% endif %}
+                    
+                    <dt class="col-sm-4">模型大小:</dt>
+                    <dd class="col-sm-8">431KB</dd>
+                    
+                    <dt class="col-sm-4">参数数量:</dt>
+                    <dd class="col-sm-8">61,706</dd>
+                </dl>
+                
+                <div class="mt-3">
+                    <button class="btn btn-primary btn-sm" id="download-model-btn" onclick="downloadModel()">下载模型</button>
+                    <button class="btn btn-secondary btn-sm" id="export-report-btn" onclick="exportReport()">导出报告</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>错误样本分析</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">显示模型预测错误的样本，用于分析模型性能</p>
+                <div class="row" id="error-samples-container">
+                    <!-- 错误样本将通过JavaScript动态加载 -->
+                </div>
+                <div id="no-error-samples" class="text-center text-muted" style="display: none;">
+                    <i class="fas fa-info-circle"></i> 暂无错误样本数据，请先完成模型训练
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// 训练记录选择器功能
+function selectTraining() {
+    const selector = document.getElementById('training-selector');
+    const selectedTrainingId = selector.value;
+    
+    if (selectedTrainingId) {
+        // 重新加载页面并显示选中的训练记录
+        window.location.href = `?training_id=${selectedTrainingId}`;
+    } else {
+        // 如果选择了空值，重新加载页面不带参数
+        window.location.href = window.location.pathname;
+    }
+}
+
+// 训练数据
+const trainingData = {% if has_training_data %}JSON.parse('{{ selected_training|escapejs }}'){% else %}null{% endif %};
+
+// 训练进度已通过模板直接显示，无需JavaScript计算
+
+// 准备图表数据
+let trainLossData = [], valLossData = [], accuracyData = [], chartLabels = [];
+
+if (trainingData) {
+    // 优先使用step级别的训练损失数据，验证损失使用epoch级别数据
+    if (trainingData.step_losses && trainingData.step_losses.length > 0) {
+        trainLossData = trainingData.step_losses;
+        chartLabels = trainingData.step_labels || [];
+        
+        // 验证损失对齐逻辑：只在每个epoch的最后一个step点显示验证损失
+        valLossData = [];
+        const epochValLosses = trainingData.epoch_val_losses || [];
+        
+        for (let i = 0; i < chartLabels.length; i++) {
+            const label = chartLabels[i];
+            const epochNum = parseInt(label.split('.')[0]);
+            
+            // 检查是否是epoch结束点
+            const isEpochEnd = i === chartLabels.length - 1 || 
+                             (i < chartLabels.length - 1 && 
+                              parseInt(chartLabels[i + 1].split('.')[0]) > epochNum);
+            
+            if (isEpochEnd && epochNum <= epochValLosses.length) {
+                // epoch结束点，显示对应的验证损失
+                valLossData.push(epochValLosses[epochNum - 1]);
+            } else {
+                valLossData.push(null);
+            }
+        }
+        
+        // 准确率数据使用epoch级别
+        accuracyData = trainingData.epoch_accuracies || [];
+    } else {
+        // 回退到epoch级别的数据（用于兼容旧数据）
+        trainLossData = trainingData.epoch_losses || [];
+        valLossData = trainingData.epoch_val_losses || [];
+        accuracyData = trainingData.epoch_accuracies || [];
+        chartLabels = Array.from({length: Math.max(trainLossData.length, valLossData.length)}, (_, i) => (i + 1).toString());
+    }
+} else {
+    // 默认示例数据
+    trainLossData = [2.3025, 2.2678, 2.1123, 1.8456, 1.4567, 1.0234, 0.7891, 0.4567, 0.1234, 0.0267];
+    valLossData = [2.4025, 2.3678, 2.2123, 1.9456, 1.5567, 1.1234, 0.8891, 0.5567, 0.2234, 0.1267];
+    accuracyData = [11.35, 19.87, 34.56, 45.67, 67.89, 78.90, 87.65, 92.34, 96.78, 99.12];
+    chartLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+}
+
+// 验证损失标签插件（与训练页面保持一致）
+const validationLabelPlugin = {
+    id: 'validationLabelPlugin',
+    afterDatasetsDraw: function(chart, args, options) {
+        const ctx = chart.ctx;
+        const datasets = chart.data.datasets;
+        
+        // 只处理验证损失数据集 (index 1)
+        const validationDataset = datasets[1];
+        if (!validationDataset || !validationDataset.data) return;
+        
+        const meta = chart.getDatasetMeta(1);
+        if (!meta.visible) return;
+        
+        ctx.save();
+        ctx.font = 'bold 10px Arial';
+        ctx.fillStyle = 'rgb(54, 162, 235)';
+        ctx.textAlign = 'center';
+        
+        validationDataset.data.forEach((value, index) => {
+            if (value !== null && value !== undefined) {
+                const point = meta.data[index];
+                if (point && point.x !== undefined && point.y !== undefined) {
+                    ctx.fillText(value.toFixed(4), point.x, point.y - 10);
+                }
+            }
+        });
+        
+        ctx.restore();
+    }
+};
+
+// 损失曲线图
+const lossCtx = document.getElementById('lossChart').getContext('2d');
+new Chart(lossCtx, {
+    type: 'line',
+    data: {
+        labels: chartLabels,
+        datasets: [{
+            label: '训练损失 (Training Loss)',
+            data: trainLossData,
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+            tension: 0.3,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            spanGaps: true
+        }, {
+            label: '验证损失 (Validation Loss)',
+            data: valLossData,
+            borderColor: 'rgb(54, 162, 235)',
+            backgroundColor: 'rgba(54, 162, 235, 0.1)',
+            tension: 0.1,
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            spanGaps: true,  // 连接数据点，跳过null值，形成折线
+            pointStyle: 'rectRot'  // 使用旋转方形点来区分
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Loss'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: chartLabels.some(label => label.includes('.')) ? 'Training Progress (Epoch.Step)' : 'Epoch'
+                },
+                ticks: {
+                    maxTicksLimit: 15,  // 限制x轴标签数量避免重叠
+                    callback: function(value, index, ticks) {
+                        const label = this.getLabelForValue(value);
+                        if (label && label.includes('.')) {
+                            const parts = label.split('.');
+                            const epoch = parts[0];
+                            const step = parts[1];
+                            // 只显示每个epoch的开始或关键点
+                            if (step === '1' || step === '5' || parseInt(step) % 5 === 0) {
+                                return `${epoch}.${step}`;
+                            }
+                            return '';
+                        }
+                        return label;
+                    }
+                }
+            }
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: trainingData ? '训练和验证损失曲线 (实际数据)' : '训练和验证损失曲线 (示例数据)'
+            },
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
+        animation: {
+            duration: 300
+        }
+    },
+    plugins: [validationLabelPlugin]  // 注册自定义插件
+});
+
+// 准确率曲线图（使用epoch级别的标签）
+const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
+const accuracyLabels = accuracyData.length > 0 ? 
+    Array.from({length: accuracyData.length}, (_, i) => `Epoch ${i + 1}`) : chartLabels;
+
+new Chart(accuracyCtx, {
+    type: 'line',
+    data: {
+        labels: accuracyLabels,
+        datasets: [{
+            label: '验证准确率 (Validation Accuracy)',
+            data: accuracyData,
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.1,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                title: {
+                    display: true,
+                    text: 'Accuracy (%)'
+                }
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: 'Epoch'
+                }
+            }
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: trainingData ? '验证准确率曲线 (实际数据)' : '验证准确率曲线 (示例数据)'
+            },
+            legend: {
+                display: true,
+                position: 'top'
+            },
+            // 添加数值标签
+            datalabels: false // 如果需要可以启用
+        }
+    }
+});
+
+// 生成训练历史表格
+function generateTrainingHistoryTable() {
+    const tbody = document.getElementById('training-history-tbody');
+    
+    if (trainingData && trainingData.epoch_losses && trainingData.epoch_val_losses && trainingData.epoch_accuracies) {
+        const epochLosses = trainingData.epoch_losses;
+        const valLosses = trainingData.epoch_val_losses;
+        const valAccuracies = trainingData.epoch_accuracies;
+        
+        const maxRows = Math.max(epochLosses.length, valLosses.length, valAccuracies.length);
+        
+        for (let i = 0; i < maxRows; i++) {
+            const row = document.createElement('tr');
+            
+            // 轮数
+            const epochCell = document.createElement('td');
+            epochCell.textContent = i + 1;
+            row.appendChild(epochCell);
+            
+            // 训练损失
+            const trainLossCell = document.createElement('td');
+            trainLossCell.textContent = epochLosses[i] ? epochLosses[i].toFixed(4) : 'N/A';
+            row.appendChild(trainLossCell);
+            
+            // 验证损失
+            const valLossCell = document.createElement('td');
+            valLossCell.textContent = valLosses[i] ? valLosses[i].toFixed(4) : 'N/A';
+            row.appendChild(valLossCell);
+            
+            // 验证准确率
+            const valAccCell = document.createElement('td');
+            valAccCell.textContent = valAccuracies[i] ? valAccuracies[i].toFixed(2) + '%' : 'N/A';
+            row.appendChild(valAccCell);
+            
+            tbody.appendChild(row);
+        }
+    } else {
+        // 显示示例数据
+        const sampleData = [
+            {epoch: 1, trainLoss: 2.3025, valLoss: 2.2956, valAcc: 11.32},
+            {epoch: 2, trainLoss: 2.2678, valLoss: 2.2456, valAcc: 22.14},
+            {epoch: 3, trainLoss: 2.1123, valLoss: 2.0987, valAcc: 36.78},
+            {epoch: '...', trainLoss: '...', valLoss: '...', valAcc: '...'},
+            {epoch: 10, trainLoss: 0.0267, valLoss: 0.0234, valAcc: 98.56}
+        ];
+        
+        sampleData.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.epoch}</td>
+                <td>${typeof item.trainLoss === 'number' ? item.trainLoss.toFixed(4) : item.trainLoss}</td>
+                <td>${typeof item.valLoss === 'number' ? item.valLoss.toFixed(4) : item.valLoss}</td>
+                <td>${typeof item.valAcc === 'number' ? item.valAcc.toFixed(2) + '%' : item.valAcc}</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+}
+
+// 调用生成训练历史表格
+generateTrainingHistoryTable();
+
+// 加载错误样本图片
+function loadErrorSamples() {
+    const container = document.getElementById('error-samples-container');
+    const noSamplesDiv = document.getElementById('no-error-samples');
+    
+    // 获取错误样本数据
+    const errorSamples = trainingData && trainingData.error_samples ? trainingData.error_samples : [];
+    
+    // 尝试加载5张错误样本图片
+    const sampleCount = 5;
+    let loadedCount = 0;
+    
+    for (let i = 1; i <= sampleCount; i++) {
+        const img = new Image();
+        img.onload = function() {
+            loadedCount++;
+            
+            // 创建图片容器
+            const colDiv = document.createElement('div');
+            colDiv.className = 'col text-center mb-3';  // 使用col实现5张并排
+            
+            const borderDiv = document.createElement('div');
+            borderDiv.className = 'border p-2 mb-2';
+            borderDiv.style.display = 'inline-block';
+            
+            const imgElement = document.createElement('img');
+            imgElement.src = `/static/images/error_sample_${i}.png`;
+            imgElement.className = 'img-fluid';
+            imgElement.alt = `错误样本${i}`;
+            imgElement.style.width = '80px';
+            imgElement.style.height = '80px';
+            imgElement.style.objectFit = 'contain';
+            
+            const labelElement = document.createElement('small');
+            // 使用实际的错误样本数据显示标签
+            if (errorSamples.length >= i) {
+                const sample = errorSamples[i - 1];
+                labelElement.innerHTML = `True: ${sample.true_label}, Pred: ${sample.pred_label}`;
+                labelElement.className = 'text-danger font-weight-bold';
+            } else {
+                labelElement.innerHTML = `样本 ${i}`;
+                labelElement.className = 'text-muted';
+            }
+            
+            borderDiv.appendChild(imgElement);
+            colDiv.appendChild(borderDiv);
+            colDiv.appendChild(labelElement);
+            container.appendChild(colDiv);
+        };
+        
+        img.onerror = function() {
+            // 图片加载失败时跳过
+        };
+        
+        img.src = `/static/images/error_sample_${i}.png`;
+    }
+    
+    // 如果没有加载到任何图片，显示提示信息
+    setTimeout(() => {
+        if (loadedCount === 0) {
+            noSamplesDiv.style.display = 'block';
+        }
+    }, 2000);
+}
+
+// 调用加载错误样本
+loadErrorSamples();
+
+// 下载模型功能
+function downloadModel() {
+    {% if has_training_data and selected_training_obj.model_path %}
+    const modelPath = '{{ selected_training_obj.model_path }}';
+    const link = document.createElement('a');
+    link.href = '/' + modelPath;  // 添加根路径
+    link.download = 'lenet_model.pth';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    {% else %}
+    alert('暂无可下载的模型文件，请先完成模型训练。');
+    {% endif %}
+}
+
+// 导出报告功能
+function exportReport() {
+    {% if has_training_data %}
+    // 创建报告内容
+    const reportData = {
+        training_info: {
+            id: '{{ selected_training_obj.id }}',
+            status: '{{ selected_training_obj.status }}',
+            progress: {{ selected_training_obj.progress }},
+            epochs: {{ selected_training_obj.total_epochs }},
+            final_accuracy: {{ selected_training_obj.current_accuracy }},
+            final_val_loss: {{ selected_training_obj.current_val_loss }},
+            duration: '{{ selected_training_obj.duration|default:"N/A" }}'
+        },
+        config: JSON.parse('{{ selected_training|escapejs }}').config,
+        epoch_data: {
+            losses: JSON.parse('{{ selected_training|escapejs }}').epoch_losses || [],
+            val_losses: JSON.parse('{{ selected_training|escapejs }}').epoch_val_losses || [],
+            accuracies: JSON.parse('{{ selected_training|escapejs }}').epoch_accuracies || []
+        },
+        timestamp: new Date().toISOString()
+    };
+    
+    // 生成报告内容
+    let reportContent = `训练报告\n`;
+    reportContent += `========================================\n`;
+    reportContent += `生成时间: ${new Date().toLocaleString()}\n`;
+    reportContent += `训练ID: ${reportData.training_info.id}\n`;
+    reportContent += `训练状态: ${reportData.training_info.status}\n`;
+    reportContent += `训练进度: ${reportData.training_info.progress}%\n`;
+    reportContent += `训练时长: ${reportData.training_info.duration}\n`;
+    reportContent += `\n配置信息:\n`;
+    reportContent += `- 训练轮数: ${reportData.training_info.epochs}\n`;
+    reportContent += `- 批次大小: ${reportData.config.batch_size}\n`;
+    reportContent += `- 学习率: ${reportData.config.learning_rate}\n`;
+    reportContent += `- 优化器: ${reportData.config.optimizer.toUpperCase()}\n`;
+    reportContent += `\n最终结果:\n`;
+    reportContent += `- 最终准确率: ${reportData.training_info.final_accuracy.toFixed(2)}%\n`;
+    reportContent += `- 最终验证损失: ${reportData.training_info.final_val_loss.toFixed(4)}\n`;
+    reportContent += `\n历史记录:\n`;
+    
+    for (let i = 0; i < reportData.epoch_data.losses.length; i++) {
+        reportContent += `Epoch ${i + 1}: `;
+        reportContent += `训练损失=${reportData.epoch_data.losses[i].toFixed(4)}, `;
+        if (reportData.epoch_data.val_losses[i] !== undefined) {
+            reportContent += `验证损失=${reportData.epoch_data.val_losses[i].toFixed(4)}, `;
+        }
+        if (reportData.epoch_data.accuracies[i] !== undefined) {
+            reportContent += `验证准确率=${reportData.epoch_data.accuracies[i].toFixed(2)}%`;
+        }
+        reportContent += `\n`;
+    }
+    
+    // 创建下载链接
+    const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `training_report_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    {% else %}
+    alert('暂无训练数据，请先完成模型训练。');
+    {% endif %}
+}
+
+// 如果没有训练数据，显示提示
+{% if not has_training_data %}
+document.querySelector('.row.mt-4 .col-12 .card .card-body').innerHTML = `
+    <p class="text-center text-muted">
+        <i class="fas fa-info-circle"></i> 暂无训练数据，请先进行模型训练
+    </p>
+    <div class="text-center">
+        <a href="/train/" class="btn btn-primary">开始训练</a>
+    </div>
+`;
+{% endif %}
+</script>
+{% endblock %}

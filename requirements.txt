@@ -1,4 +1,18 @@
+# 深度学习框架
 torch
 torchvision
+
+# 数据科学和可视化
 matplotlib
 scikit-learn
+numpy
+
+# Web框架
+Django
+
+# 图像处理支持
+Pillow
+
+# 导出模型支持
+onnx
+onnxruntime

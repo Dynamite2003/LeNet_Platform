@@ -15,13 +15,15 @@ python --version
 pip install -r requirements.txt
 ```
 
-**已安装的核心包**:
+**核心包**:
 - Django (Web 框架)
 - PyTorch (深度学习)
 - torchvision (数据集和预处理)
 - matplotlib (可视化)
 - numpy (数值计算)
 - Pillow (图像处理)
+- onnx (导出模型需要)
+- onnxruntime
 
 ### 3. 数据库初始化
 

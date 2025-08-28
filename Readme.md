@@ -1,6 +1,4 @@
 # LeNet PyTorch 训练平台 - 详细使用说明
-
-
 ### 1. 环境检查
 
 确认系统已安装 Python 3.9+：
@@ -16,14 +14,24 @@ pip install -r requirements.txt
 ```
 
 **核心包**:
-- Django (Web 框架)
-- PyTorch (深度学习)
-- torchvision (数据集和预处理)
-- matplotlib (可视化)
-- numpy (数值计算)
-- Pillow (图像处理)
-- onnx (导出模型需要)
-- onnxruntime
+- 深度学习框架
+torch=2.9.0
+torchvision=0.23.0
+
+- 数据科学和可视化
+matplotlib=3.9.4
+scikit-learn=1.6.1
+numpy=2.0.2
+
+- Web框架
+django=4.2.23
+
+- 图像处理支持
+pillow=11.3.0
+
+- 导出模型支持
+onnx=1.19.0
+onnxruntime=1.19.2
 
 ### 3. 数据库初始化
 
